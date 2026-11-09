@@ -5,6 +5,9 @@ cd /var/www/html
 # Les commandes artisan tournent en www-data : les fichiers (logs, caches) restent écrivables par Apache.
 run() { su -s /bin/sh www-data -c "$*"; }
 
+# Un volume monté sur storage/ (photos des drops) appartient à root au premier démarrage.
+chown -R www-data:www-data storage bootstrap/cache
+
 # La base peut mettre quelques secondes à démarrer : on réessaie.
 i=0
 until run "php artisan migrate --force"; do
