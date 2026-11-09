@@ -9,4 +9,12 @@ return [
     'payment_mode' => env('DROP_PAYMENT_MODE', 'simulated'),
     'stripe_secret' => env('STRIPE_SECRET'),
     'stripe_webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+
+    // Drop du jour tiré au hasard dans le catalogue (heure d'ouverture en heure de Paris, voir config/app.php).
+    'draw' => [
+        'opens_at' => '18:00',
+        'duration_minutes' => 60,
+        'stock_min' => 10,
+        'stock_max' => 30,
+    ],
 ];

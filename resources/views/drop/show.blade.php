@@ -14,8 +14,8 @@
         <div class="statut" id="statut">{{ ['upcoming' => 'à venir', 'live' => 'en vente', 'soldout' => 'sold out', 'closed' => 'terminé'][$state['status']] }}</div>
     </header>
 
-    @if ($drop->image_path)
-        <img class="visuel" src="{{ asset('storage/'.$drop->image_path) }}" alt="{{ $drop->title }}">
+    @if ($drop->imageUrl())
+        <img class="visuel" src="{{ $drop->imageUrl() }}" alt="{{ $drop->title }}">
     @endif
 
     <h1>{{ $drop->title }}</h1>

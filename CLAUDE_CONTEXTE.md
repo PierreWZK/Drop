@@ -139,6 +139,23 @@ Journal de bord du projet. À mettre à jour à chaque étape : demandes, travai
 - Page de réservation : bouton « Payer », message « Commande confirmée » une fois payée.
 - Dépendance ajoutée : `stripe/stripe-php`.
 
+### Demande 2026-11-09 : drops tirés au hasard dans un catalogue de 50 produits
+
+Précision de l'utilisateur : garder la création manuelle de drop, et ajouter un catalogue de ~50 produits dont un est tiré chaque jour.
+
+Réponses enregistrées : tirage automatique chaque jour ; ouverture 18 h, 1 h de vente, stock tiré entre 10 et 30 (réparti entre les tailles, au moins 1 par taille) ; photos réelles libres de droits ; un produit ne ressort pas avant que les 50 soient passés (puis nouveau cycle).
+
+- Fait (code) :
+  - Table `catalog_products` (nom unique, description, prix, tailles en JSON, photo, `drawn_at`, `times_drawn`), colonne `drops.catalog_product_id`.
+  - `CatalogSeeder` : 50 produits fictifs, idempotent (`firstOrCreate`). Rattache une photo si `public/catalog/<slug>.jpg` existe.
+  - `DropDrawService::drawFor()` : tirage sans répétition dans le cycle, verrou, idempotent par jour, refuse une heure d'ouverture passée (sauf `--date`).
+  - `drops:draw` : planifié chaque heure (`routes/console.php`), crée aujourd'hui (si 18 h pas passée) et demain.
+  - Fuseau horaire passé à `Europe/Paris` (18 h = heure de Paris).
+  - Entrypoint Docker : seed + tirage au démarrage.
+- Testé : 47 tests PHPUnit passent (seeder idempotent, 18 h → 19 h, stock 10–30 sur 50 tirages, pas de doublon avant le cycle complet, commande horaire idempotente, heure passée, catalogue vide, photo catalogue vs upload). Seed réel : 50 produits, 50 noms distincts. `drops:draw` lancé deux fois en local : un seul drop, « Besace Cuir Cognac », 16 exemplaires.
+- **Non fait : photos.** Openverse renvoie 504 sur toutes les requêtes (session, 50 produits, deux termes chacun). Wikimedia Commons répond (200), mais les résultats sont de qualité inégale (« chore jacket » donne des photos de personnes ou de livres). Un script de recherche + téléchargement est prêt dans le scratchpad (`photos.js`), mais il n'a rien trouvé. Aucun fichier dans `public/catalog/`, donc pas de `CREDITS.md`.
+- **Non fait : déploiement.** Rien n'est poussé ni redéployé pour cette demande. Les commits restent locaux sur `feat/mise-en-ligne`.
+
 ### Étape 5 (concurrence, Docker, GitHub, Coolify), V1 en ligne
 
 - **Test de charge** : `php artisan drops:load-test --requests=200 --stock=20 --concurrency=20`. Crée un drop temporaire, lance N processus PHP distincts (vraie concurrence en base) qui réservent puis paient, vérifie qu'il y a exactement S commandes, `sold = S`, `reserved = 0`, puis supprime le drop. Passe par les services (pas HTTP, car la limite de débit par IP bloquerait une seule machine). Code de sortie non nul en cas d'écart.

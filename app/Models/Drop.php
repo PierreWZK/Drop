@@ -9,9 +9,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Drop extends Model
 {
     protected $fillable = [
-        'slug', 'title', 'description', 'price_cents', 'image_path',
+        'catalog_product_id', 'slug', 'title', 'description', 'price_cents', 'image_path',
         'opens_at', 'closes_at', 'reservation_minutes',
     ];
+
+    /** Photos du catalogue : public/catalog/... ; photos envoyées depuis l'admin : storage public. */
+    public function imageUrl(): ?string
+    {
+        if ($this->image_path === null) {
+            return null;
+        }
+
+        return str_starts_with($this->image_path, 'catalog/')
+            ? asset($this->image_path)
+            : asset('storage/'.$this->image_path);
+    }
 
     protected function casts(): array
     {
