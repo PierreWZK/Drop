@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Drop;
 use App\Models\Order;
 use App\Models\Reservation;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,8 @@ class OrderService
     {
         // 5 essais : MySQL peut annuler une transaction en cas de deadlock, on la rejoue.
         return DB::transaction(function () use ($reservation, $amountCents, $sessionId, $address) {
+            // Verrou du drop d'abord, comme ReservationService : même ordre partout, pas de deadlock.
+            Drop::whereKey($reservation->drop_id)->lockForUpdate()->firstOrFail();
             $locked = Reservation::whereKey($reservation->id)->lockForUpdate()->firstOrFail();
 
             $existing = Order::where('reservation_id', $locked->id)->first();

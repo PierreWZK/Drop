@@ -14,16 +14,23 @@ class ReservationService
     /** Rend au stock les réservations expirées. Retourne le nombre libéré. */
     public function expireStale(?int $dropId = null): int
     {
-        return DB::transaction(function () use ($dropId) {
-            $stale = Reservation::query()
-                ->where('status', 'reserved')
-                ->where('expires_at', '<=', now())
-                ->when($dropId, fn ($q) => $q->where('drop_id', $dropId))
-                ->lockForUpdate()
-                ->get();
+        $stale = fn () => Reservation::query()
+            ->where('status', 'reserved')
+            ->where('expires_at', '<=', now())
+            ->when($dropId, fn ($q) => $q->where('drop_id', $dropId));
+
+        // Cas courant (rien d'expiré) : aucune transaction, aucun verrou.
+        if (! $stale()->exists()) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($stale) {
+            // Même ordre de verrous partout (drop d'abord) : sans cela, MySQL détecte des deadlocks
+            // entre cette libération, les réservations et les paiements simultanés.
+            Drop::whereIn('id', $stale()->distinct()->pluck('drop_id'))->orderBy('id')->lockForUpdate()->get();
 
             $released = 0;
-            foreach ($stale as $reservation) {
+            foreach ($stale()->get() as $reservation) {
                 // Conditionnel : si un paiement l'a passée en "paid" entre-temps, on n'y touche pas.
                 $changed = Reservation::where('id', $reservation->id)
                     ->where('status', 'reserved')
