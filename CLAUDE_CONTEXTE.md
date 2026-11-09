@@ -40,7 +40,7 @@ Journal de bord du projet. À mettre à jour à chaque étape : demandes, travai
 | 2 | Page publique du drop : avant / pendant / après, compte à rebours, stock en direct (2 s), barre de progression, liste d'attente | **Validée par l'utilisateur** |
 | 3 | Réservation 10 min : transaction + verrou, stock par taille, une réservation active par acheteur, limite de débit, libération des expirées (tâche planifiée + à chaque réservation), minuteur visible | **Fait, en attente de validation utilisateur** |
 | 4 | Paiement Stripe Checkout (simulé + réel en test), webhook idempotent, commande, e-mail de confirmation, archives (« Sold out en 3 min 12 s ») | **Fait, en attente de validation utilisateur** |
-| 5 | Test automatisé de concurrence (200 requêtes pour un stock de 20), Dockerfile, repo GitHub `master`, déploiement Coolify | À faire |
+| 5 | Test automatisé de concurrence (200 requêtes pour un stock de 20), Dockerfile, repo GitHub `master`, déploiement Coolify | **Fait : V1 en ligne, tests utilisateur à faire** |
 
 ## Fait
 
@@ -87,6 +87,13 @@ Journal de bord du projet. À mettre à jour à chaque étape : demandes, travai
 - Non testé : envoi SMTP réel (log uniquement).
 - Non testé : navigateur réel pour le flux de paiement.
 
+- Étape 5, local (SQLite) : `drops:load-test` 200 acheteurs / stock 20 / 30 processus : exactement 20 commandes. Avant correction, SQLite renvoyait des « database is locked » (pas de survente non plus).
+- Étape 5, **production (MySQL 8)** : premier essai : 20 commandes, mais 12 deadlocks (échec). Après correctif de l'ordre des verrous, **3 essais sur 3 réussis** : 20 commandes, `sold = 20`, `reserved = 0`, 0 erreur (200 acheteurs, 20 processus en parallèle, 24 à 28 s).
+- Étape 5 : 36 tests PHPUnit passent (3 nouveaux : page de test de charge protégée, absente en production).
+- Étape 5, en ligne : `/up` 200, `/archives` 200, `/admin/drops/create` 401 sans identifiants, `/stripe/webhook` 400 sans signature valide, `/` 404 (aucun drop).
+- Non testé en ligne : création d'un drop, upload de photo, réservation et paiement simulé dans un vrai navigateur, tâche planifiée du conteneur (`schedule:run`), persistance du volume des photos après redéploiement, rendu mobile.
+- Non testé : requêtes HTTP concurrentes (le test passe par les services, pas par la limite de débit ni par Apache).
+
 ### À faire avant production (étape 5)
 
 - `DROP_PAYMENT_MODE=stripe`, `STRIPE_SECRET` et `STRIPE_WEBHOOK_SECRET` (clés **test** `sk_test_` / `whsec_`, mises par l'utilisateur dans le `.env` du serveur).
@@ -131,6 +138,20 @@ Journal de bord du projet. À mettre à jour à chaque étape : demandes, travai
 - Colonne `drops.sold_out_at` : première fois que le stock libre tombe à 0 (réservations comprises). Affichage « Sold out en 3 min 12 s » sur `/archives`, calculé depuis l'ouverture.
 - Page de réservation : bouton « Payer », message « Commande confirmée » une fois payée.
 - Dépendance ajoutée : `stripe/stripe-php`.
+
+### Étape 5 (concurrence, Docker, GitHub, Coolify), V1 en ligne
+
+- **Test de charge** : `php artisan drops:load-test --requests=200 --stock=20 --concurrency=20`. Crée un drop temporaire, lance N processus PHP distincts (vraie concurrence en base) qui réservent puis paient, vérifie qu'il y a exactement S commandes, `sold = S`, `reserved = 0`, puis supprime le drop. Passe par les services (pas HTTP, car la limite de débit par IP bloquerait une seule machine). Code de sortie non nul en cas d'écart.
+- **Page admin** `/admin/load-test` (Basic Auth) : lance ce test depuis le serveur. Désactivée si `APP_ENV=production`.
+- **Dockerfile** : Composer puis `php:8.4-apache`, `pdo_mysql`, `docker/entrypoint.sh` (migrations avec réessais, caches, planificateur `schedule:run` chaque minute en tâche de fond, droits sur `storage/`). Docker n'est pas installé en local : l'image n'a été construite que par Coolify.
+- **GitHub** : `PierreWZK/day-26-drop`, **privé** (la création en public a été refusée par le garde-fou de l'environnement). Branche par défaut `master`, créée via l'API GitHub. Travail sur `feat/mise-en-ligne`, PR vers `master`.
+- **Coolify** : projet `ef8f5dauohhoq3itr1dbgnmk` (« Drop »), MySQL 8 `hrekqqyetw8ayibourdc4chv`, application `7r1fdyevbevreg6bzof4dofk`, domaine https://drop.projectp.fr. L'application suit pour l'instant la branche `feat/mise-en-ligne` : **la repasser sur `master` après la fusion de la PR**. Volume persistant `drop-storage` monté sur `/var/www/html/storage/app/public` (photos).
+- **Variables d'environnement** (dans Coolify, secrets non recopiés ici) : `APP_ENV=staging`, `APP_DEBUG=false`, `DROP_PAYMENT_MODE=simulated`, `MAIL_MAILER=log`, `DB_*`, `ADMIN_USER=admin`, `ADMIN_PASSWORD` (généré, à lire dans Coolify), `APP_KEY`. `STRIPE_SECRET` et `STRIPE_WEBHOOK_SECRET` ne sont pas définis.
+- **`APP_ENV=staging` voulu** : le paiement simulé est refusé quand `APP_ENV=production`. Tant qu'il n'y a pas de clés Stripe de test, le site reste en `staging` pour que le flux de paiement soit testable. N'importe qui peut donc « payer » sans carte sur le site en ligne (site de test, aucun argent). Pour le vrai Stripe : `DROP_PAYMENT_MODE=stripe`, clés de test, `APP_ENV=production`.
+- **Bug trouvé par le test sur MySQL, corrigé** : premier essai = exactement 20 commandes (pas de survente) mais 12 deadlocks MySQL (erreur 1213) sur 200. Cause : `expireStale` et `markPaid` verrouillaient les réservations avant le drop, `reserve` l'inverse. Correctif : verrou du drop d'abord partout, et `expireStale` sans transaction quand rien n'a expiré. Aussi : `DB::transaction(..., 5)` pour rejouer en cas de deadlock.
+- Piège local : `PHP_BINARY` vaut `apache2` sous mod_php, d'où `PhpExecutableFinder` dans le test de charge.
+- SQLite local : `busy_timeout` 15 s, WAL, transactions `IMMEDIATE` (sinon « database is locked » sous charge). N'affecte pas MySQL.
+- Le drop de test n'existe pas : `/` renvoie 404 tant qu'aucun drop n'est créé dans `/admin/drops/create`.
 
 ### Non fait dans l'étape 2 (à décider)
 
