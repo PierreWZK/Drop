@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Drop extends Model
@@ -16,13 +17,21 @@ class Drop extends Model
     /** Photos du catalogue : public/catalog/... ; photos envoyées depuis l'admin : storage public. */
     public function imageUrl(): ?string
     {
-        if ($this->image_path === null) {
+        // Un drop tiré avant l'ajout des photos reprend la photo du catalogue.
+        $path = $this->image_path ?? $this->catalogProduct?->image_path;
+
+        if ($path === null) {
             return null;
         }
 
-        return str_starts_with($this->image_path, 'catalog/')
-            ? asset($this->image_path)
-            : asset('storage/'.$this->image_path);
+        return str_starts_with($path, 'catalog/')
+            ? asset($path)
+            : asset('storage/'.$path);
+    }
+
+    public function catalogProduct(): BelongsTo
+    {
+        return $this->belongsTo(CatalogProduct::class);
     }
 
     protected function casts(): array
@@ -58,6 +67,27 @@ class Drop extends Model
         }
 
         return $this->available() === 0 ? 'soldout' : 'live';
+    }
+
+    /** État léger du drop (JSON de /state, compte à rebours et stock des pages). */
+    public function toState(): array
+    {
+        $this->loadMissing('sizes');
+
+        return [
+            'status' => $this->status(),
+            'server_now' => now()->toIso8601String(),
+            'opens_at' => $this->opens_at->toIso8601String(),
+            'closes_at' => $this->closes_at->toIso8601String(),
+            'stock_total' => $this->stockTotal(),
+            'sold' => $this->soldCount(),
+            'available' => $this->available(),
+            'sizes' => $this->sizes->map(fn ($size) => [
+                'id' => $size->id,
+                'label' => $size->label,
+                'available' => $size->available(),
+            ])->values(),
+        ];
     }
 
     public function stockTotal(): int

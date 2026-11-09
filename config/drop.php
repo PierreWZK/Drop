@@ -4,6 +4,9 @@ return [
     'admin_user' => env('ADMIN_USER'),
     'admin_password' => env('ADMIN_PASSWORD'),
 
+    // Tant que c'est false, personne ne peut payer : bouton désactivé et refus côté serveur.
+    'payments_enabled' => env('DROP_PAYMENTS_ENABLED', false),
+
     // simulated : paiement factice en local. stripe : Stripe Checkout (clés de test).
     // Le mode simulé est refusé en production, quelle que soit cette valeur.
     'payment_mode' => env('DROP_PAYMENT_MODE', 'simulated'),

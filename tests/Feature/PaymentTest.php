@@ -21,7 +21,7 @@ class PaymentTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['drop.payment_mode' => 'simulated', 'drop.stripe_webhook_secret' => self::SECRET]);
+        config(['drop.payment_mode' => 'simulated', 'drop.stripe_webhook_secret' => self::SECRET, 'drop.payments_enabled' => true]);
     }
 
     private function makeDrop(string $opensIn = '-1 hour', array $stocks = ['S' => 5], int $priceCents = 12900): Drop
@@ -78,6 +78,26 @@ class PaymentTest extends TestCase
                 'address' => ['line1' => '1 rue de la Paix', 'line2' => null, 'postal_code' => '75002', 'city' => 'Paris', 'country' => 'FR'],
             ],
         ];
+    }
+
+    public function test_payments_closed_blocks_button_and_server(): void
+    {
+        config(['drop.payments_enabled' => false]);
+        $drop = $this->makeDrop();
+        $r = $this->reservation($drop);
+
+        // Le bouton est désactivé et ne poste rien.
+        $this->get(route('reservations.show', $r))
+            ->assertOk()
+            ->assertSee('type="button" disabled', false)
+            ->assertDontSee(route('checkout.start', $r), false);
+
+        // Même en forçant les requêtes : aucun paiement possible.
+        $this->post(route('checkout.start', $r))->assertSessionHas('pay_error');
+        $this->get(route('checkout.simulate', $r))->assertForbidden();
+        $this->post(route('checkout.confirm', $r), ['name' => 'a', 'address' => 'b'])->assertForbidden();
+        $this->assertSame(0, Order::count());
+        $this->assertSame('reserved', $r->fresh()->status);
     }
 
     public function test_simulated_checkout_creates_one_order_and_moves_stock_to_sold(): void

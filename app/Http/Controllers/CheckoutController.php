@@ -20,6 +20,10 @@ class CheckoutController extends Controller
     /** Démarre le paiement d'une réservation active. */
     public function start(Reservation $reservation): RedirectResponse
     {
+        if (! config('drop.payments_enabled')) {
+            return back()->with('pay_error', 'Le paiement n\'est pas encore ouvert.');
+        }
+
         $this->sweep($reservation);
 
         if (! $reservation->fresh()->isActive()) {
@@ -63,6 +67,7 @@ class CheckoutController extends Controller
 
     public function simulate(Reservation $reservation): View
     {
+        abort_unless(config('drop.payments_enabled'), 403, 'Le paiement n\'est pas encore ouvert.');
         abort_unless($this->simulated(), 404);
         $this->sweep($reservation);
         abort_unless($reservation->fresh()->isActive(), 410, 'Réservation expirée.');
@@ -72,6 +77,7 @@ class CheckoutController extends Controller
 
     public function confirm(Request $request, Reservation $reservation): RedirectResponse
     {
+        abort_unless(config('drop.payments_enabled'), 403, 'Le paiement n\'est pas encore ouvert.');
         abort_unless($this->simulated(), 404);
         $this->sweep($reservation);
 
