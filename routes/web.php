@@ -4,12 +4,15 @@ use App\Http\Controllers\AdminDropController;
 use App\Http\Controllers\AdminLoadTestController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\CreditsController;
 use App\Http\Controllers\DropController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', [DropController::class, 'current'])->name('home');
+Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('credits', [CreditsController::class, 'index'])->name('credits');
 
 Route::get('drops/{drop:slug}', [DropController::class, 'show'])->name('drops.show');
 Route::get('drops/{drop:slug}/state', [DropController::class, 'stateJson'])->name('drops.state');

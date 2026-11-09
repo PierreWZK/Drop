@@ -139,6 +139,44 @@ Journal de bord du projet. À mettre à jour à chaque étape : demandes, travai
 - Page de réservation : bouton « Payer », message « Commande confirmée » une fois payée.
 - Dépendance ajoutée : `stripe/stripe-php`.
 
+### Demande 2026-11-09 : drops tirés au hasard dans un catalogue de 50 produits
+
+Précision de l'utilisateur : garder la création manuelle de drop, et ajouter un catalogue de ~50 produits dont un est tiré chaque jour.
+
+Réponses enregistrées : tirage automatique chaque jour ; ouverture 18 h, 1 h de vente, stock tiré entre 10 et 30 (réparti entre les tailles, au moins 1 par taille) ; photos réelles libres de droits ; un produit ne ressort pas avant que les 50 soient passés (puis nouveau cycle).
+
+- Fait (code) :
+  - Table `catalog_products` (nom unique, description, prix, tailles en JSON, photo, `drawn_at`, `times_drawn`), colonne `drops.catalog_product_id`.
+  - `CatalogSeeder` : 50 produits fictifs, idempotent (`firstOrCreate`). Rattache une photo si `public/catalog/<slug>.jpg` existe.
+  - `DropDrawService::drawFor()` : tirage sans répétition dans le cycle, verrou, idempotent par jour, refuse une heure d'ouverture passée (sauf `--date`).
+  - `drops:draw` : planifié chaque heure (`routes/console.php`), crée aujourd'hui (si 18 h pas passée) et demain.
+  - Fuseau horaire passé à `Europe/Paris` (18 h = heure de Paris).
+  - Entrypoint Docker : seed + tirage au démarrage.
+- Testé : 47 tests PHPUnit passent (seeder idempotent, 18 h → 19 h, stock 10–30 sur 50 tirages, pas de doublon avant le cycle complet, commande horaire idempotente, heure passée, catalogue vide, photo catalogue vs upload). Seed réel : 50 produits, 50 noms distincts. `drops:draw` lancé deux fois en local : un seul drop, « Besace Cuir Cognac », 16 exemplaires.
+- **Non fait : photos.** Openverse renvoie 504 sur toutes les requêtes (session, 50 produits, deux termes chacun). Wikimedia Commons répond (200), mais les résultats sont de qualité inégale (« chore jacket » donne des photos de personnes ou de livres). Un script de recherche + téléchargement est prêt dans le scratchpad (`photos.js`), mais il n'a rien trouvé. Aucun fichier dans `public/catalog/`, donc pas de `CREDITS.md`.
+- **Non fait : déploiement.** Rien n'est poussé ni redéployé pour cette demande. Les commits restent locaux sur `feat/mise-en-ligne`.
+
+### Demande 2026-11-09 : vitrine, paiement bloqué, images
+
+Demandes : (1) une page vitrine qui dit ce que fait le site, avec un hero « vraiment cool », un CTA sympa et un timer (temps avant l'ouverture, ou temps restant) ; (2) on peut cliquer sur le bouton pour voir le produit, mais « Payer » doit être impossible ; (3) images : prendre celles qu'on trouve, générer les autres.
+
+- **Vitrine sur `/`** (`HomeController`, `resources/views/home.blade.php`, `public/css/vitrine.css`, `public/js/vitrine.js`). Direction « le nom comme monument » (skill design-taste-frontend), le compte à rebours jouant le rôle du nom : `HH:MM:SS` sur toute la largeur de l'écran. Palette imposée #EAE6DE / #226192 / #EF8557, texte courant en bleu foncé #14385a (contraste), polices Gambarino + General Sans (Fontshare).
+  - Hero : h1 « Un seul produit par jour, à 18 h. », photo du produit du jour, CTA « Voir le drop du jour », compteur géant (avant l'ouverture / avant la fin de la vente / sold out / terminé), mis à jour par `/drops/{slug}/state` toutes les 2 s, horloge serveur.
+  - Sections : Comment ça marche (4 lignes en escalier), Le drop du jour (photo, prix, stock par taille en direct, jauge, boutons), 50 produits un seul sort (3 produits du catalogue), bandeau « 200 acheteurs, 20 exemplaires, 20 commandes » (résultat réel du test de charge), Questions fréquentes, Rendez-vous à 18 h, footer avec grand « drop ».
+  - Le drop affiché : celui en cours ou le prochain, sinon le dernier fermé. Sans aucun drop, la vitrine s'affiche quand même (compteur à zéro, lien vers les archives).
+  - `Drop::toState()` (état du drop) est partagé par la vitrine, la page du drop et `/state`.
+- **Paiement bloqué** : `DROP_PAYMENTS_ENABLED` (défaut `false`, `config/drop.php`). Le bouton « Payer » de la page de réservation est désactivé (aucun formulaire posté), et le serveur refuse `checkout.start` (message), `checkout.simulate` et `checkout.confirm` (403). Pour rouvrir : `DROP_PAYMENTS_ENABLED=true`. Le bouton « Je le veux » et la réservation restent possibles.
+- **Images** :
+  - 20 photos réelles libres de droits (Wikimedia Commons, CC0 / domaine public / CC BY / CC BY-SA) dans `public/catalog/`, choisies à l'œil sur planche contact parmi 46 candidats. Crédits dans `public/catalog/CREDITS.md`, page `/credits`, lien dans le footer.
+  - Écartées : foules, concerts, personnes identifiables, animaux, logos de marque visibles, objets de musée hors sujet.
+  - Les 30 produits sans photo affichent une plaque générée : motif de fleurs orange dessiné en SVG (`partials/fleur-symbol`, `partials/plate`). Le logo est une fleur à huit pétales. **Je n'ai pas d'outil de génération d'image raster** : « générer » signifie ici dessiner en SVG dans le code. Pas de photos générées par IA.
+  - Les photos illustrent la catégorie (veste, sac…), pas le produit exact : le catalogue est fictif (dit dans la FAQ et les crédits).
+  - Les produits du catalogue sans photo et un drop tiré avant l'ajout des photos reprennent la photo du catalogue (`Drop::imageUrl()` : repli sur `catalogProduct`).
+- **Testé** : 57 tests PHPUnit passent (9 nouveaux dans `HomeTest`, 1 dans `PaymentTest` pour le paiement bloqué). Inspecteur du skill à 1440 / 768 / 390 px : **0 échec**, 4 avertissements défendus (ci-dessous). Linter du skill : 0 échec. Rendu vérifié sur captures desktop et mobile. `--allow palette-claude` : le skill signale « crème + terracotta » ; c'est la palette imposée par l'utilisateur.
+- Avertissements restants, défendus : 10 tailles de police (échelle du monument : compteur, « drop » du footer, titre de clôture) ; pas de vidéo (aucun clip honnête pour un catalogue fictif) ; « vide » dans le hero (faux positif : c'est le compteur, un `span` par chiffre pour qu'il ne bouge pas, car Gambarino n'a pas de chiffres tabulaires) ; texte beige sur bleu à 5,3:1 sur mobile.
+- Bug trouvé : le titre du hero était décalé de 30 px sur mobile (`align-self: center` dans une colonne). Corrigé.
+- **Non fait / non testé** : rien n'est déployé pour cette demande (Coolify tourne encore sur l'ancien code, sans vitrine ni paiement bloqué). Vitrine non vue sur un vrai téléphone ni sur tablette en capture. Animations (apparition, rétrécissement du compteur au défilement) non vérifiées à l'œil, seulement par l'inspecteur. Polices chargées depuis Fontshare (service tiers). Le compteur de la vitrine n'a pas été regardé à l'instant exact de l'ouverture (18 h).
+
 ### Étape 5 (concurrence, Docker, GitHub, Coolify), V1 en ligne
 
 - **Test de charge** : `php artisan drops:load-test --requests=200 --stock=20 --concurrency=20`. Crée un drop temporaire, lance N processus PHP distincts (vraie concurrence en base) qui réservent puis paient, vérifie qu'il y a exactement S commandes, `sold = S`, `reserved = 0`, puis supprime le drop. Passe par les services (pas HTTP, car la limite de débit par IP bloquerait une seule machine). Code de sortie non nul en cas d'écart.

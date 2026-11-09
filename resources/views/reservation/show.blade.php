@@ -28,10 +28,15 @@
             <div class="chiffres" id="minuteur" data-remaining="{{ $remaining }}">--:--</div>
         </div>
         <p class="info">Ton exemplaire est mis de côté. Sans paiement dans ce délai, il retourne en vente.</p>
-        <form method="post" action="{{ route('checkout.start', $reservation) }}">
-            @csrf
-            <button class="bouton" type="submit">Payer {{ number_format($reservation->drop->price_cents / 100, 2, ',', ' ') }} €</button>
-        </form>
+        @if (config('drop.payments_enabled'))
+            <form method="post" action="{{ route('checkout.start', $reservation) }}">
+                @csrf
+                <button class="bouton" type="submit">Payer {{ number_format($reservation->drop->price_cents / 100, 2, ',', ' ') }} €</button>
+            </form>
+        @else
+            <button class="bouton" type="button" disabled aria-disabled="true">Payer {{ number_format($reservation->drop->price_cents / 100, 2, ',', ' ') }} €</button>
+            <p class="info">Le paiement n'est pas encore ouvert : ton exemplaire reste réservé, mais il ne peut pas être payé pour l'instant.</p>
+        @endif
         @if (session('pay_error'))
             <p class="message erreur">{{ session('pay_error') }}</p>
         @endif

@@ -41,4 +41,5 @@
         .minuteur .chiffres { font-size: clamp(3rem, 14vw, 5.5rem); font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.05; }
         .recap { margin-top: 18px; border: 2px solid var(--bleu); padding: 14px; line-height: 1.6; }
         a.retour { display: inline-block; margin-top: 18px; color: var(--bleu); font-weight: 800; }
+        .visuel .plate-art { position: absolute; inset: 0; width: 100%; height: 100%; }
 </style>

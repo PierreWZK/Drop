@@ -14,8 +14,11 @@
         <div class="statut" id="statut">{{ ['upcoming' => 'à venir', 'live' => 'en vente', 'soldout' => 'sold out', 'closed' => 'terminé'][$state['status']] }}</div>
     </header>
 
-    @if ($drop->image_path)
-        <img class="visuel" src="{{ asset('storage/'.$drop->image_path) }}" alt="{{ $drop->title }}">
+    @if (! $drop->imageUrl())
+        @include('partials.fleur-symbol')
+        <div class="visuel" style="position: relative; overflow: hidden">@include('partials.plate', ['seed' => $drop->id, 'label' => 'Motif de fleurs'])</div>
+    @else
+        <img class="visuel" src="{{ $drop->imageUrl() }}" alt="{{ $drop->title }}">
     @endif
 
     <h1>{{ $drop->title }}</h1>
@@ -63,7 +66,7 @@
         @endif
     </form>
 
-    <section class="attente">
+    <section class="attente" id="attente">
         <h2>Prévenez-moi à l'ouverture</h2>
         <form method="post" action="{{ route('drops.waitlist', $drop) }}" id="form-attente" @if ($state['status'] !== 'upcoming') hidden @endif>
             @csrf

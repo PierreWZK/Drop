@@ -20,6 +20,11 @@ until run "php artisan migrate --force"; do
     sleep 3
 done
 
+# Catalogue de 50 produits : idempotent, ne modifie jamais un produit déjà en base.
+run "php artisan db:seed --class=CatalogSeeder --force"
+# Crée tout de suite le drop du jour / de demain s'il n'existe pas (sinon : au prochain passage horaire).
+run "php artisan drops:draw" || true
+
 run "php artisan storage:link --force" || true
 run "php artisan config:cache"
 run "php artisan route:cache"
