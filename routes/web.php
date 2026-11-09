@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminDropController;
+use App\Http\Controllers\AdminLoadTestController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DropController;
@@ -33,4 +34,6 @@ Route::get('archives', [ArchiveController::class, 'index'])->name('archives');
 Route::prefix('admin')->middleware('auth.basic.drop')->name('admin.')->group(function () {
     Route::get('drops/create', [AdminDropController::class, 'create'])->name('drops.create');
     Route::post('drops', [AdminDropController::class, 'store'])->name('drops.store');
+    Route::get('load-test', [AdminLoadTestController::class, 'form'])->name('load-test');
+    Route::post('load-test', [AdminLoadTestController::class, 'run'])->name('load-test.run');
 });

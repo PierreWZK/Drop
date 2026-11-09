@@ -41,6 +41,8 @@ class LoadTest extends Command
 
         $this->info("{$requests} acheteurs, stock {$stock}, {$concurrency} processus en parallèle, base : ".DB::getDriverName());
 
+        // Lancé depuis Apache (page admin), PHP_BINARY est apache2 : on cherche le vrai binaire php.
+        $php = (new \Symfony\Component\Process\PhpExecutableFinder)->find(false) ?: 'php';
         $pending = range(1, $requests);
         $running = [];
         $results = [];
@@ -49,7 +51,7 @@ class LoadTest extends Command
         while ($pending || $running) {
             while ($pending && count($running) < $concurrency) {
                 $n = array_shift($pending);
-                $p = new Process([PHP_BINARY, base_path('artisan'), 'drops:load-test-worker', $drop->id, $n], base_path());
+                $p = new Process([$php, base_path('artisan'), 'drops:load-test-worker', $drop->id, $n], base_path());
                 $p->start();
                 $running[] = $p;
             }
