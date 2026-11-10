@@ -156,6 +156,22 @@ Réponses enregistrées : tirage automatique chaque jour ; ouverture 18 h, 1 h d
 - **Non fait : photos.** Openverse renvoie 504 sur toutes les requêtes (session, 50 produits, deux termes chacun). Wikimedia Commons répond (200), mais les résultats sont de qualité inégale (« chore jacket » donne des photos de personnes ou de livres). Un script de recherche + téléchargement est prêt dans le scratchpad (`photos.js`), mais il n'a rien trouvé. Aucun fichier dans `public/catalog/`, donc pas de `CREDITS.md`.
 - **Non fait : déploiement.** Rien n'est poussé ni redéployé pour cette demande. Les commits restent locaux sur `feat/mise-en-ligne`.
 
+### Demande 2026-11-10 (suite) : README de Drop et vitrine 30days30projects
+
+Demandes : revoir le README de Drop avec une preview et le lien du site ; revoir le projet vitrine (30days30projects) avec toutes les informations du jour 26.
+
+- **README de Drop** réécrit (il décrivait encore l'idée) : lien https://drop.projectp.fr/, 4 captures dans `docs/` (hero, drop du jour, catalogue, mobile, prises en local sur le code de la PR 3 avec le tee rayé en drop du jour, barre de défilement masquée, PNG quantifiés à 192 couleurs, 30 à 365 Ko), scénario, fonctionnalités, section « Zéro survente » (verrous, test de charge, résultats MySQL), tableau des critères de réussite du cahier des charges avec leur état réel, stack, lancement en local, variables propres à Drop, tests, déploiement, structure, limites et crédits.
+- Commandes du README rejouées sur une base SQLite neuve : `migrate --seed` crée 50 produits, `drops:draw` crée 2 drops, `schedule:list` montre les 2 tâches ; 67 tests passent.
+- Pour que `migrate --seed` marche : `DatabaseSeeder` appelle maintenant `CatalogSeeder` (il créait un « Test User » inutile). Variables Drop ajoutées à `.env.example` (`ADMIN_*`, `DROP_PAYMENTS_ENABLED`, `DROP_PAYMENT_MODE`, `STRIPE_*`).
+- **Vitrine** (dépôt `PierreWZK/30DaysProjects`, dossier `30days30projects`, branche `feat/vitrine-drop` créée depuis `master` à jour après la fusion de la PR 21) :
+  - `projects.js` : entrée du jour 26 (Drop, « La boutique d'un produit par jour », Laravel · MySQL · Stripe, `status: 'done'`, image, URL, dépôt, description de 334 caractères). L'ancienne ligne « Gestion de garage » est remplacée.
+  - `README.md` : ligne du jour 26 passée à ✅ avec démo et dépôt.
+  - `preview-days-images/day26_drop.png` : capture du hero de Drop (1600 × 900).
+  - `docs/preview.png` (l'aperçu du README de la vitrine) refait : il datait du jour 6 (« 6 / 30 ») ; il montre maintenant « 26 / 30 projets livrés » avec les 26 cases colorées.
+  - Vérifié dans le navigateur : `projects.js` se charge, compteur « 26 / 30 projets livrés », carte du jour 26 avec badge « TERMINÉ », image chargée (1600 px), technos, lien vers drop.projectp.fr, aucune erreur de console.
+- **À savoir** : le dépôt `PierreWZK/Drop` est **privé** (la création publique avait été refusée). La vitrine et le README y renvoient : le lien GitHub donnera une 404 aux visiteurs tant que le dépôt n'est pas public.
+- **Non fait** : rien n'est poussé (ni la branche `feat/vitrine-drop`, ni le commit README de `feat/refonte-landing`). La vitrine pointe vers le site en ligne tel qu'il sera après le déploiement de la PR 3.
+
 ### Demande 2026-11-10 : refonte de la landing, logo, illustrations, header (branche `feat/refonte-landing`)
 
 Demandes : (1) tester le site avec Playwright et corriger les erreurs (dont le CTA du hero) ; (2) une belle fleur pour le logo ; (3) refaire les images « générées » en vraies illustrations de produit (ex. tee manches longues rayé avec le logo) ; (4) garder le header sur la page produit pour revenir à l'accueil ; (5) hero d'après une image de référence (grand titre condensé noir sur forme orange, fond beige) ; (6) refaire chaque section de la landing pour un rendu plus professionnel.
