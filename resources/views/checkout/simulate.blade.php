@@ -9,10 +9,7 @@
 </head>
 <body>
 <main>
-    <header>
-        <div class="logo">Drop<span>.</span></div>
-        <div class="statut">simulation</div>
-    </header>
+    @include('partials.site-header', ['statut' => 'simulation'])
 
     <h1>Paiement</h1>
     <div class="recap">

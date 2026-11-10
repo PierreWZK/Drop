@@ -9,17 +9,9 @@
 </head>
 <body>
 <main>
-    <header>
-        <div class="logo">Drop<span>.</span></div>
-        <div class="statut" id="statut">{{ ['upcoming' => 'à venir', 'live' => 'en vente', 'soldout' => 'sold out', 'closed' => 'terminé'][$state['status']] }}</div>
-    </header>
+    @include('partials.site-header', ['statut' => ['upcoming' => 'à venir', 'live' => 'en vente', 'soldout' => 'sold out', 'closed' => 'terminé'][$state['status']], 'statutId' => 'statut'])
 
-    @if (! $drop->imageUrl())
-        @include('partials.fleur-symbol')
-        <div class="visuel" style="position: relative; overflow: hidden">@include('partials.plate', ['seed' => $drop->id, 'label' => 'Motif de fleurs'])</div>
-    @else
-        <img class="visuel" src="{{ $drop->imageUrl() }}" alt="{{ $drop->title }}">
-    @endif
+    <div class="visuel">@include('partials.visual', ['name' => $drop->title, 'photo' => $drop->imageUrl(), 'seed' => $drop->id, 'lazy' => false])</div>
 
     <h1>{{ $drop->title }}</h1>
     <div class="prix">{{ number_format($drop->price_cents / 100, 2, ',', ' ') }} € <small>· édition limitée</small></div>

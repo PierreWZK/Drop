@@ -42,9 +42,9 @@ class HomeTest extends TestCase
     {
         $response = $this->get('/')->assertOk();
 
-        $response->assertSee('Un seul produit par jour, à 18 h.')
+        $response->assertSeeInOrder(['Un seul', 'produit', 'par jour,', 'à 18 h.'])
             ->assertSee('Comment ça marche')
-            ->assertSee('Tu as dix minutes.')
+            ->assertSee('Je paie')
             ->assertSee('Questions fréquentes');
         $this->assertSame(1, substr_count($response->getContent(), '<h1'));
     }
@@ -82,21 +82,61 @@ class HomeTest extends TestCase
             ->assertSee('Le prochain drop est tiré chaque jour.');
     }
 
-    public function test_home_shows_three_catalog_products(): void
+    public function test_home_shows_eight_catalog_products_half_with_photo(): void
     {
-        foreach (range(1, 5) as $i) {
-            CatalogProduct::create(['name' => "Produit {$i}", 'description' => 'x', 'price_cents' => 5000, 'sizes' => ['S']]);
+        foreach (range(1, 12) as $i) {
+            CatalogProduct::create([
+                'name' => "Produit {$i}", 'description' => 'x', 'price_cents' => 5000, 'sizes' => ['S'],
+                'image_path' => $i <= 6 ? "catalog/produit-{$i}.jpg" : null,
+            ]);
         }
 
-        $this->get('/')->assertOk()->assertSee('5 produits. Un seul sort chaque jour.');
-        $this->assertSame(3, substr_count($this->get('/')->getContent(), 'class="vignette"'));
+        $html = $this->get('/')->assertOk()->assertSee('12 produits. Un seul par jour.')->getContent();
+
+        $this->assertSame(8, substr_count($html, 'class="nom"'));
+        $this->assertSame(4, preg_match_all('#<img src="[^"]*/catalog/produit-\d+\.jpg"#', $html));
     }
 
-    public function test_product_without_photo_gets_the_flower_plate(): void
+    public function test_product_without_photo_gets_its_drawn_illustration_with_the_logo(): void
+    {
+        $drop = $this->makeDrop('+1 hour');
+        $drop->update(['title' => 'T-shirt Manches Longues Rayé']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('class="product-art"', false)
+            ->assertSee('Illustration : T-shirt Manches Longues Rayé', false)
+            ->assertSee('<use href="#fleur"', false);
+    }
+
+    public function test_unknown_product_without_photo_falls_back_to_the_flower_plate(): void
     {
         $this->makeDrop('+1 hour');
 
         $this->get('/')->assertOk()->assertSee('class="plate-art"', false)->assertSee('id="fleur"', false);
+    }
+
+    public function test_hero_cta_and_nav_cta_point_to_the_drop(): void
+    {
+        $drop = $this->makeDrop('+1 hour');
+        $html = $this->get('/')->assertOk()->getContent();
+
+        $this->assertGreaterThanOrEqual(3, substr_count($html, 'href="'.route('drops.show', $drop).'"'));
+        $this->assertStringContainsString('class="btn btn-lg"', $html);
+    }
+
+    public function test_inner_pages_keep_a_header_that_goes_back_home(): void
+    {
+        $drop = $this->makeDrop('-1 hour');
+        $reservation = app(\App\Services\ReservationService::class)->reserve($drop, $drop->sizes()->value('id'), 'a@example.fr');
+
+        foreach ([route('drops.show', $drop), route('reservations.show', $reservation), route('archives'), route('credits')] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee('class="site-header"', false)
+                ->assertSee('href="'.route('home').'"', false)
+                ->assertSee('aria-label="Drop, retour à l\'accueil"', false);
+        }
     }
 
     public function test_product_with_photo_gets_its_image(): void

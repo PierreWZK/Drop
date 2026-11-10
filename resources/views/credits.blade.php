@@ -14,10 +14,7 @@
 </head>
 <body>
 <main>
-    <header>
-        <div class="logo">Drop<span>.</span></div>
-        <a class="retour" href="{{ route('home') }}" style="margin:0">Accueil</a>
-    </header>
+    @include('partials.site-header')
     <div class="credits"><div class="credits-scroll">{!! $html !!}</div></div>
 </main>
 </body>

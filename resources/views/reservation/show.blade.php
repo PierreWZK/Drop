@@ -9,10 +9,7 @@
 </head>
 <body>
 <main>
-    <header>
-        <div class="logo">Drop<span>.</span></div>
-        <div class="statut">{{ $active ? 'réservé' : ($reservation->status === 'paid' ? 'payé' : 'expiré') }}</div>
-    </header>
+    @include('partials.site-header', ['statut' => $active ? 'réservé' : ($reservation->status === 'paid' ? 'payé' : 'expiré')])
 
     <h1>{{ $reservation->drop->title }}</h1>
 

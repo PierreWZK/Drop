@@ -8,10 +8,7 @@
 </head>
 <body>
 <main>
-    <header>
-        <div class="logo">Drop<span>.</span></div>
-        <a class="retour" href="{{ route('home') }}" style="margin:0">Drop du jour</a>
-    </header>
+    @include('partials.site-header')
 
     <h1>Archives</h1>
 
