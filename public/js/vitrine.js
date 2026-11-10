@@ -6,7 +6,7 @@
     const $ = (id) => document.getElementById(id);
     const pad = (n) => String(n).padStart(2, '0');
 
-    const libelles = { upcoming: 'avant l\'ouverture', live: 'avant la fin de la vente', soldout: 'Sold out', closed: 'Drop terminé' };
+    const libelles = { upcoming: 'avant l\'ouverture', live: 'avant la fin de la vente', soldout: 'sold out', closed: 'drop terminé' };
 
     // Décalage entre l'horloge du serveur et celle du navigateur : le compteur suit le serveur.
     let decalage = etat ? new Date(etat.server_now).getTime() - Date.now() : 0;
@@ -20,8 +20,7 @@
     }
 
     function ecrireChiffres(texte) {
-        const spans = $('digits').querySelectorAll('span');
-        [...texte].forEach((c, i) => { if (spans[i] && spans[i].textContent !== c) spans[i].textContent = c; });
+        if ($('digits').textContent !== texte) $('digits').textContent = texte;
         $('digits').setAttribute('aria-label', `${texte} ${libelles[etat ? etat.status : ''] || 'Prochain drop bientôt'}`);
     }
 

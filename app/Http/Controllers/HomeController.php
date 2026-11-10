@@ -8,7 +8,7 @@ use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    /** Vitrine : drop en cours ou à venir (sinon le dernier fermé), et trois produits du catalogue. */
+    /** Vitrine : drop en cours ou à venir (sinon le dernier fermé), et huit produits du catalogue. */
     public function index(): View
     {
         $drop = Drop::query()
@@ -19,13 +19,14 @@ class HomeController extends Controller
 
         $drop?->load('sizes', 'catalogProduct');
 
-        // Les produits avec photo d'abord, complétés par les autres si le catalogue en manque.
-        $selection = CatalogProduct::query()
-            ->when($drop?->catalog_product_id, fn ($q, $id) => $q->where('id', '!=', $id))
-            ->orderByRaw('image_path IS NULL')
-            ->inRandomOrder()
-            ->limit(3)
-            ->get();
+        $others = CatalogProduct::query()
+            ->when($drop?->catalog_product_id, fn ($q, $id) => $q->where('id', '!=', $id));
+
+        // Quatre produits avec photo et quatre avec illustration, mélangés.
+        $selection = (clone $others)->whereNotNull('image_path')->inRandomOrder()->limit(4)->get()
+            ->concat((clone $others)->whereNull('image_path')->inRandomOrder()->limit(4)->get())
+            ->shuffle()
+            ->values();
 
         return view('home', [
             'drop' => $drop,
